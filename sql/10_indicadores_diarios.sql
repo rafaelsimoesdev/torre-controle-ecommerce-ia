@@ -36,6 +36,7 @@ SELECT
   p.pedidos,
   p.cancelados,
   v.receita,
+  v.pedidos_validos,
   ROUND(SAFE_DIVIDE(v.receita, v.pedidos_validos), 2) AS ticket_medio,
   v.itens_vendidos,
   ROUND(v.taxa_devolucao, 4) AS taxa_devolucao,
