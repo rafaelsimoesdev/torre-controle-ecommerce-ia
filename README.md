@@ -12,7 +12,7 @@ Sistema que acompanha a operação de uma loja online todo dia: carrega os pedid
 
 - [x] 0. Fundação: Git, repositório, acesso ao BigQuery, esqueleto e CI
 - [x] 1. Dados e SQL: consultas de exploração, tabela de indicadores, dashboard
-- [ ] 2. ML: previsão de demanda, segmentação de clientes (RFM + K-Means), anomalias (MLflow)
+- [ ] 2. ML: previsão de demanda ✓, segmentação de clientes (RFM + K-Means), anomalias (MLflow)
 - [ ] 3. IA generativa: assistente texto-para-SQL com avaliação e guardrails
 - [ ] 4. Automação e MLOps: pipeline diário, drift, relatório no Telegram
 - [ ] 5. Vitrine: diagrama, demo, post
@@ -27,10 +27,29 @@ Sistema que acompanha a operação de uma loja online todo dia: carrega os pedid
 
 **O que os dados mostraram (e o que mudou no projeto)**
 
-- **Prazo de entrega não depende de nada.** O tempo entre envio e entrega é uniforme de 0 a 4 dias em todos os centros de distribuição. Um modelo de previsão de atraso não aprenderia nada útil, então a Fase 2 vai prever **demanda**, que tem tendência e sazonalidade de verdade.
+- **Prazo de entrega não depende de nada.** O tempo entre envio e entrega é uniforme de 0 a 4 dias em todos os centros de distribuição. Um modelo de previsão de atraso não aprenderia nada útil, então a Fase 2 vai prever **demanda**, que tem uma tendência clara de crescimento.
 - **A devolução fica perto de 10% em todas as categorias.** As categorias que parecem "devolver mais" são as que vendem pouco: é efeito de amostra pequena, não problema de produto.
 - **66,5% dos clientes compram uma vez só**, e ninguém passa de 4 pedidos. A segmentação vai se apoiar em recência e valor gasto, mais do que em frequência.
 - **Os últimos dias têm um salto artificial de pedidos**, típico do gerador da base sintética. O dashboard fica filtrado até 18/10/2026, e o modelo de demanda vai treinar só com dados de até 15 dias atrás.
+
+## Fase 2: previsão de demanda
+
+**Pergunta:** quantos pedidos a loja vai receber em cada dia da próxima semana?
+
+![Previsão de pedidos por dia](docs/previsao_demanda.png)
+
+**Como foi avaliado.** Em série temporal, o teste é sempre o futuro: nada de embaralhar os dados. Cada modelo usa só o que seria conhecido 7 dias antes do dia previsto e passa por um **backtest** em 6 períodos de 28 dias, para que um bom resultado não seja sorte de um mês específico.
+
+| Modelo | Erro médio (MAE, pedidos/dia) | RMSE |
+|---|---|---|
+| **Tendência linear das últimas 4 semanas** | **11,2** | **14,3** |
+| Média dos últimos 7 dias | 12,5 | 15,5 |
+| LightGBM (calendário, lags e médias móveis) | 13,6 | 17,3 |
+| Semana passada (baseline) | 14,9 | 18,3 |
+
+**Por que o modelo mais simples venceu.** A série não tem efeito de dia da semana (todos os dias ficam entre 99% e 101% da média) e varia uns 10% em torno de uma tendência de crescimento. Sem padrão para aprender, o LightGBM acaba aprendendo o ruído. A reta das últimas 4 semanas erra **25% menos que o baseline**, e foi o modelo escolhido. O LightGBM continua no projeto como competidor, com tudo registrado no MLflow.
+
+**Código:** [`src/demanda/`](src/demanda/), com testes em [`tests/`](tests/). Para reproduzir: `python -m src.demanda.dados` e depois `python -m src.demanda.backtest`.
 
 ## Estrutura
 
