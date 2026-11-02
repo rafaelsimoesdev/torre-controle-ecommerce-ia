@@ -12,7 +12,7 @@ Sistema que acompanha a operação de uma loja online todo dia: carrega os pedid
 
 - [x] 0. Fundação: Git, repositório, acesso ao BigQuery, esqueleto e CI
 - [x] 1. Dados e SQL: consultas de exploração, tabela de indicadores, dashboard
-- [ ] 2. ML: previsão de demanda ✓, segmentação de clientes (RFM + K-Means), anomalias (MLflow)
+- [ ] 2. ML: previsão de demanda ✓, segmentação de clientes (RFM + K-Means) ✓, anomalias (MLflow)
 - [ ] 3. IA generativa: assistente texto-para-SQL com avaliação e guardrails
 - [ ] 4. Automação e MLOps: pipeline diário, drift, relatório no Telegram
 - [ ] 5. Vitrine: diagrama, demo, post
@@ -50,6 +50,20 @@ Sistema que acompanha a operação de uma loja online todo dia: carrega os pedid
 **Por que o modelo mais simples venceu.** A série não tem efeito de dia da semana (todos os dias ficam entre 99% e 101% da média) e varia uns 10% em torno de uma tendência de crescimento. Sem padrão para aprender, o LightGBM acaba aprendendo o ruído. A reta das últimas 4 semanas erra **25% menos que o baseline**, e foi o modelo escolhido. O LightGBM continua no projeto como competidor, com tudo registrado no MLflow.
 
 **Código:** [`src/demanda/`](src/demanda/), com testes em [`tests/`](tests/). Para reproduzir: `python -m src.demanda.dados` e depois `python -m src.demanda.backtest`.
+
+## Fase 2: segmentação de clientes
+
+**Pergunta:** quais grupos de clientes existem e o que fazer com cada um?
+
+Cada cliente vira 3 números (**RFM**): **R**ecência (dias desde a última compra), **F**requência (número de pedidos) e **M** (valor gasto). A consulta está em [`sql/20_rfm_clientes.sql`](sql/20_rfm_clientes.sql). O **K-Means** agrupa os clientes depois de colocar as 3 medidas na mesma escala (com log no valor, porque poucos clientes gastam muito). O número de grupos foi escolhido pelo **silhouette score**: entre 2 e 8 grupos, o melhor foi **3** (0,377).
+
+| Segmento | Clientes | Última compra | Pedidos | Gasto médio | O que fazer |
+|---|---|---|---|---|---|
+| **Fiéis** | 27% | há ~1 ano | 2,4 | US$ 228 | Programa de fidelidade e lançamentos antes de todo mundo. Não precisam de desconto para comprar. |
+| **Ocasionais** | 50% | há ~1 ano | 1,0 | US$ 78 | É o maior potencial: cupom para a segunda compra, que é o passo que transforma ocasional em fiel. |
+| **Inativos** | 23% | há ~4 anos | 1,1 | US$ 95 | Uma campanha barata de reativação. Quem não responder sai das campanhas pagas. |
+
+**Código:** [`src/segmentacao/rfm.py`](src/segmentacao/rfm.py). Para reproduzir: rode o SQL no BigQuery e depois `python -m src.segmentacao.rfm`.
 
 ## Estrutura
 
