@@ -1,6 +1,6 @@
 # Torre de Controle de E-commerce com IA
 
-**Status:** em construção. Fase 1 de 5 concluída.
+**Status:** em construção. Fase 2 de 5 concluída.
 
 Sistema que acompanha a operação de uma loja online todo dia: carrega os pedidos novos, calcula indicadores, prevê a demanda, segmenta clientes, detecta anomalias e escreve um relatório diário com IA. Inclui um assistente que responde perguntas em português consultando o banco de dados.
 
@@ -12,7 +12,7 @@ Sistema que acompanha a operação de uma loja online todo dia: carrega os pedid
 
 - [x] 0. Fundação: Git, repositório, acesso ao BigQuery, esqueleto e CI
 - [x] 1. Dados e SQL: consultas de exploração, tabela de indicadores, dashboard
-- [ ] 2. ML: previsão de demanda ✓, segmentação de clientes (RFM + K-Means) ✓, anomalias (MLflow)
+- [x] 2. ML: previsão de demanda, segmentação de clientes (RFM + K-Means), anomalias (MLflow)
 - [ ] 3. IA generativa: assistente texto-para-SQL com avaliação e guardrails
 - [ ] 4. Automação e MLOps: pipeline diário, drift, relatório no Telegram
 - [ ] 5. Vitrine: diagrama, demo, post
@@ -64,6 +64,29 @@ Cada cliente vira 3 números (**RFM**): **R**ecência (dias desde a última comp
 | **Inativos** | 23% | há ~4 anos | 1,1 | US$ 95 | Uma campanha barata de reativação. Quem não responder sai das campanhas pagas. |
 
 **Código:** [`src/segmentacao/rfm.py`](src/segmentacao/rfm.py). Para reproduzir: rode o SQL no BigQuery e depois `python -m src.segmentacao.rfm`.
+
+## Fase 2: detecção de anomalias
+
+**Pergunta:** a operação teve algum dia fora do normal?
+
+A tendência linear da previsão de demanda diz quantos pedidos eram **esperados** em cada dia. O detector mede quanto o real fugiu do esperado e compara com o ruído normal da série (medido com a **mediana**, que não é puxada pelas próprias anomalias). Um dia vira anomalia quando foge mais de **3,5 vezes** desse ruído.
+
+![Detecção de anomalias](docs/anomalias.png)
+
+| Dia | Pedidos | Esperado | Desvio |
+|---|---|---|---|
+| 24/10/2026 | 431 | 238 | +81% |
+| 25/10/2026 | 533 | 241 | +121% |
+| 26/10/2026 | 764 | 244 | +213% |
+| 27/10/2026 | 998 | 251 | +298% |
+| 28/10/2026 | 1.625 | 257 | +532% |
+| 29/10/2026 | 40 | 261 | −85% |
+
+O detector pegou sozinho o **salto artificial** que tinha sido encontrado na mão na Fase 1, e também a **queda** de 29/10, quando a carga da base veio incompleta. Em 22 meses de histórico normal, **nenhum alarme falso**.
+
+**A escolha do limite é uma troca.** Com 3,0 o detector também pegaria o 23/10 (início do salto, nota 3,3), mas daria 5 alarmes falsos no histórico. Com 3,5 ele perde o primeiro dia e não incomoda à toa.
+
+**Código:** [`src/demanda/anomalias.py`](src/demanda/anomalias.py). Para reproduzir: `python -m src.demanda.anomalias`.
 
 ## Estrutura
 
