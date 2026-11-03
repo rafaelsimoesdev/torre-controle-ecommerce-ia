@@ -16,15 +16,15 @@ TABELAS = {
             # Você criou esta tabela na Fase 1: veja sql/10_indicadores_diarios.sql.
             # Seja específico: diga a unidade (pedidos, US$, proporção de 0 a 1)
             # e o que entra ou não na conta.
-            "pedidos": "...",
-            "cancelados": "...",
-            "receita": "...",
-            "pedidos_validos": "...",
-            "ticket_medio": "...",
-            "itens_vendidos": "...",
-            "taxa_devolucao": "...",
-            "entregues": "...",
-            "taxa_atraso": "...",
+            "pedidos": "total de pedidos criados no dia, incluindo cancelados e devolvidos",
+            "cancelados": "quantos dos pedidos criados no dia foram cancelados",
+            "receita": "soma do preço de venda dos itens do dia, sem cancelados e devolvidos, em US$",
+            "pedidos_validos": "pedidos do dia que viraram venda (sem cancelados e devolvidos); use para contar vendas",
+            "ticket_medio": "receita dividida por pedidos_validos: gasto médio por pedido, em US$",
+            "itens_vendidos": "quantidade de itens do dia, sem os cancelados (os devolvidos entram)",
+            "taxa_devolucao": "proporção de 0 a 1 dos itens não cancelados que foram devolvidos",
+            "entregues": "pedidos entregues no dia, contados pela data de entrega (não pela data da compra)",
+            "taxa_atraso": "proporção de 0 a 1 dos pedidos entregues no dia que levaram mais de 3 dias do envio à entrega",
         },
     },
     "torre_controle.rfm_clientes": {
@@ -55,7 +55,7 @@ TABELAS = {
             "id": "identificador do produto",
             "name": "nome do produto",
             "category": "categoria (ex.: Jeans, Tops & Tees, Accessories)",
-            "brand": "marca",
+            "brand": "marca do produto (ex.: Calvin Klein, Levi's)",
             "department": "departamento: Men ou Women",
             "retail_price": "preço de tabela, em US$",
         },
