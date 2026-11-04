@@ -1,6 +1,6 @@
 # Torre de Controle de E-commerce com IA
 
-**Status:** em construção. Fase 2 de 5 concluída.
+**Status:** em construção. Fase 3 de 5 concluída.
 
 Sistema que acompanha a operação de uma loja online todo dia: carrega os pedidos novos, calcula indicadores, prevê a demanda, segmenta clientes, detecta anomalias e escreve um relatório diário com IA. Inclui um assistente que responde perguntas em português consultando o banco de dados.
 
@@ -13,7 +13,7 @@ Sistema que acompanha a operação de uma loja online todo dia: carrega os pedid
 - [x] 0. Fundação: Git, repositório, acesso ao BigQuery, esqueleto e CI
 - [x] 1. Dados e SQL: consultas de exploração, tabela de indicadores, dashboard
 - [x] 2. ML: previsão de demanda, segmentação de clientes (RFM + K-Means), anomalias (MLflow)
-- [ ] 3. IA generativa: assistente texto-para-SQL com avaliação e guardrails
+- [x] 3. IA generativa: assistente texto-para-SQL com avaliação e guardrails
 - [ ] 4. Automação e MLOps: pipeline diário, drift, relatório no Telegram
 - [ ] 5. Vitrine: diagrama, demo, post
 
@@ -88,10 +88,38 @@ O detector pegou sozinho o **salto artificial** que tinha sido encontrado na mã
 
 **Código:** [`src/demanda/anomalias.py`](src/demanda/anomalias.py). Para reproduzir: `python -m src.demanda.anomalias`.
 
+## Fase 3: assistente com IA
+
+**Pergunta:** e se qualquer pessoa da operação pudesse perguntar em português, sem saber SQL?
+
+![Assistente respondendo em português](docs/assistente.png)
+
+**Como funciona:**
+1. O **Gemini** recebe a pergunta junto com a descrição de cada tabela e coluna e as regras dos dados (como o salto artificial depois de 22/10), e escreve o SQL. Ver [`contexto.py`](src/assistente/contexto.py).
+2. Os **guardrails** conferem o SQL antes de rodar: só leitura, nenhum comando perigoso, um comando por vez, só as 4 tabelas liberadas e limite de linhas. Ver [`guardrails.py`](src/assistente/guardrails.py).
+3. O BigQuery **estima o custo** (dry run) e barra consultas acima de 1 GB. Só então roda.
+4. O Gemini lê o resultado e responde em português, sem inventar números. O SQL e a tabela ficam visíveis para conferência.
+
+**Defesa em camadas.** Pedidos como "apague a tabela de clientes" são recusados pelo próprio modelo, que não escreve o SQL. Se um dia ele escrever, os guardrails barram: 12 testes automáticos tentam apagar tabelas, esconder comandos atrás de comentários ou de `;` e ler tabelas não liberadas.
+
+**Avaliação.** Um conjunto de 25 perguntas com o SQL certo escrito à mão (indicadores, clientes, produtos com JOIN e 3 pedidos que devem ser recusados). O avaliador compara os **resultados**, não o texto do SQL. Ver [`avaliacao.py`](src/assistente/avaliacao.py).
+
+| Rodada | Modelo principal | Acertos | Qualidade | Disponibilidade |
+|---|---|---|---|---|
+| 1 | gemini-flash | 24 de 25 | 24 de 24 | 24 de 25 (o Gemini não respondeu uma) |
+| 2 | **gemini-flash-lite** | **25 de 25** | 25 de 25 | 25 de 25 |
+
+Na primeira rodada o modelo principal ficou sobrecarregado quase o tempo todo e o modelo reserva (flash-lite) respondeu tudo. A avaliação mostrou que o modelo mais leve bastava, e ele virou o principal: mais rápido e sem perder qualidade.
+
+**Limite honesto:** são 25 perguntas escritas por quem construiu o assistente. O próximo passo é ampliar o conjunto com perguntas mais difíceis e ambíguas.
+
+**Para usar:** coloque `GEMINI_API_KEY` no `.env` e rode `streamlit run app.py`. Avaliação: `python -m src.assistente.avaliacao`.
+
 ## Estrutura
 
 ```
 ├── sql/          # consultas versionadas
+├── app.py        # interface de chat do assistente (Streamlit)
 ├── src/          # código do pipeline, modelos e assistente
 ├── tests/        # testes automáticos
 ├── dashboard/    # arquivo do Power BI (.pbix)
