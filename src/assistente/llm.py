@@ -8,7 +8,10 @@ from google.genai import errors, types
 
 load_dotenv()
 
-MODELOS = ["gemini-flash-latest", "gemini-flash-lite-latest"]
+# Ordem decidida pela avaliação (04/11/2026): o flash-lite respondeu todas as perguntas
+# e acertou 24 de 24, enquanto o flash ficou sobrecarregado (503/429) quase sempre.
+# Começar pelo lite deixa o assistente mais rápido; o flash fica de reserva.
+MODELOS = ["gemini-flash-lite-latest", "gemini-flash-latest"]
 TEMPO_MAXIMO_MS = 60_000  # desiste de um modelo depois de 60 segundos
 
 # Por padrão a biblioteca tenta de novo várias vezes, esperando cada vez mais.
