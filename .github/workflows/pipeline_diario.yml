@@ -1,0 +1,38 @@
+name: Pipeline diário
+
+on:
+  schedule:
+    - cron: "15 11 * * *"  # 08h15 em Brasília (o GitHub usa o horário UTC, 3 horas à frente)
+  workflow_dispatch:        # botão "Run workflow" para rodar na hora
+
+permissions:
+  contents: read
+  id-token: write           # deixa o GitHub provar ao Google que é este repositório (sem chave)
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Login no Google Cloud sem chave (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/889571326423/locations/global/workloadIdentityPools/github/providers/repo-torre
+          service_account: torre-pipeline@project-96d6cb68-3fbe-4a8e-928.iam.gserviceaccount.com
+
+      - name: Rodar o pipeline diário
+        run: python -m src.pipeline.diario
+        env:
+          GCP_PROJECT: project-96d6cb68-3fbe-4a8e-928
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

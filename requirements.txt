@@ -10,3 +10,4 @@ matplotlib==3.10.7
 mlflow==3.17.2
 google-genai==2.34.0
 streamlit==1.66.1
+requests==2.34.2
