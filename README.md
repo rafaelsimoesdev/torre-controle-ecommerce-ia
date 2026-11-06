@@ -1,10 +1,34 @@
 # Torre de Controle de E-commerce com IA
 
-**Status:** em construção. Fase 3 de 5 concluída.
+Sistema que acompanha a operação de uma loja online **do dado bruto ao alerta no celular**: indicadores em SQL, dashboard, modelos de machine learning, um assistente que responde perguntas em português e um pipeline que roda sozinho todo dia e manda o relatório no Telegram.
 
-Sistema que acompanha a operação de uma loja online todo dia: carrega os pedidos novos, calcula indicadores, prevê a demanda, segmenta clientes, detecta anomalias e escreve um relatório diário com IA. Inclui um assistente que responde perguntas em português consultando o banco de dados.
+**Base de dados:** `bigquery-public-data.thelook_ecommerce`, base pública e sintética do Google, atualizada diariamente.
 
-**Base de dados:** `bigquery-public-data.thelook_ecommerce` (base pública e sintética do Google, com pedidos até a data atual).
+## Em 30 segundos
+
+- **Dashboard no Power BI** com os indicadores da operação em janela de 7 dias, alimentado por uma tabela que o próprio projeto mantém no BigQuery.
+- **Previsão de demanda:** 4 modelos comparados em backtest de 6 períodos. Uma tendência linear venceu o LightGBM e erra **25% menos que o baseline**, porque a série não tem sazonalidade. O modelo mais simples foi escolhido com base no número.
+- **Segmentação de clientes** com RFM + K-Means: 3 segmentos (Fiéis, Ocasionais e Inativos), cada um com uma ação para o marketing.
+- **Detecção de anomalias** que encontrou sozinha um salto artificial de pedidos e uma carga incompleta, **sem nenhum alarme falso** em 22 meses de histórico.
+- **Assistente com IA:** pergunta em português, o Gemini escreve o SQL, travas de segurança conferem, o BigQuery roda e a resposta volta em português. **Acertou 25 de 25** no conjunto de avaliação.
+- **Automação:** GitHub Actions roda o pipeline todo dia às 8h15, com login no Google Cloud **sem chave** e relatório no Telegram. A checagem de frescor detectou que a base parou de atualizar.
+- **Engenharia:** 45 testes automáticos, CI a cada push, uma branch e um pull request por fase.
+
+## Arquitetura
+
+```mermaid
+flowchart LR
+    BQ[(BigQuery<br/>thelook_ecommerce)] --> SQL[SQL<br/>indicadores diários]
+    SQL --> PBI[Power BI<br/>dashboard]
+    SQL --> ML[ML<br/>previsão · segmentos · anomalias]
+    BQ --> AS[Assistente<br/>Gemini + guardrails]
+    AS --> ST[Streamlit<br/>chat]
+    GA[GitHub Actions<br/>todo dia 8h15] --> PD[Pipeline diário<br/>frescor · indicadores · anomalias]
+    PD --> GE[Gemini<br/>resumo]
+    GE --> TG[Telegram]
+```
+
+**Tecnologias:** SQL (BigQuery), Python (pandas, scikit-learn, LightGBM), MLflow, Power BI (DAX), Gemini (google-genai), Streamlit, GitHub Actions, Google Cloud (Workload Identity Federation), pytest.
 
 ![Dashboard da Torre de Controle no Power BI](docs/dashboard_powerbi.png)
 
@@ -14,8 +38,8 @@ Sistema que acompanha a operação de uma loja online todo dia: carrega os pedid
 - [x] 1. Dados e SQL: consultas de exploração, tabela de indicadores, dashboard
 - [x] 2. ML: previsão de demanda, segmentação de clientes (RFM + K-Means), anomalias (MLflow)
 - [x] 3. IA generativa: assistente texto-para-SQL com avaliação e guardrails
-- [ ] 4. Automação e MLOps: pipeline diário, drift, relatório no Telegram
-- [ ] 5. Vitrine: diagrama, demo, post
+- [x] 4. Automação: pipeline diário com checagem de frescor e relatório no Telegram
+- [x] 5. Vitrine: diagrama, demo e post
 
 ## Fase 1: dados, SQL e dashboard
 
@@ -30,7 +54,7 @@ Sistema que acompanha a operação de uma loja online todo dia: carrega os pedid
 - **Prazo de entrega não depende de nada.** O tempo entre envio e entrega é uniforme de 0 a 4 dias em todos os centros de distribuição. Um modelo de previsão de atraso não aprenderia nada útil, então a Fase 2 vai prever **demanda**, que tem uma tendência clara de crescimento.
 - **A devolução fica perto de 10% em todas as categorias.** As categorias que parecem "devolver mais" são as que vendem pouco: é efeito de amostra pequena, não problema de produto.
 - **66,5% dos clientes compram uma vez só**, e ninguém passa de 4 pedidos. A segmentação vai se apoiar em recência e valor gasto, mais do que em frequência.
-- **Os últimos dias têm um salto artificial de pedidos**, típico do gerador da base sintética. O dashboard fica filtrado até 18/10/2026, e o modelo de demanda vai treinar só com dados de até 15 dias atrás.
+- **Os últimos dias têm um salto artificial de pedidos**, típico do gerador da base sintética. O dashboard fica filtrado até 18/10/2026, e os modelos usam dados só até 22/10/2026, o último dia normal.
 
 ## Fase 2: previsão de demanda
 
@@ -115,16 +139,37 @@ Na primeira rodada o modelo principal ficou sobrecarregado quase o tempo todo e 
 
 **Para usar:** coloque `GEMINI_API_KEY` no `.env` e rode `streamlit run app.py`. Avaliação: `python -m src.assistente.avaliacao`.
 
+## Fase 4: automação
+
+**Pergunta:** e se o relatório da operação chegasse sozinho, todo dia, sem ninguém rodar nada?
+
+![Relatório diário no Telegram](docs/relatorio_telegram.png)
+
+**O pipeline diário** ([`src/pipeline/diario.py`](src/pipeline/diario.py)) roda no GitHub Actions todo dia às 8h15:
+1. **Frescor:** confere se os dados de ontem chegaram. Um pipeline que roda com dados velhos produz relatórios errados sem ninguém perceber.
+2. **Indicadores:** atualiza a tabela no BigQuery com o SQL da Fase 1.
+3. **Anomalias:** roda o detector da Fase 2 no último dia.
+4. **Resumo:** o Gemini escreve o relatório a partir dos números, já formatados para ele não errar casas decimais. Se o Gemini não responder, entra um texto padrão: o relatório nunca deixa de sair.
+5. **Telegram:** a mensagem começa com **OK** ou **ALERTA**, para bater o olho e saber se precisa agir.
+
+**Falha visível.** Se qualquer etapa quebrar, chega uma mensagem de FALHA no Telegram e a execução fica vermelha no GitHub.
+
+**Login sem chave.** O Google Cloud bloqueia por padrão a criação de chaves de conta de serviço. O projeto usa **Workload Identity Federation**: o GitHub prova ao Google que é este repositório e recebe um acesso temporário. Não existe senha guardada que possa vazar, só este repositório é aceito, e a conta de serviço tem acesso apenas ao BigQuery.
+
+**Na prática:** desde a primeira execução, o relatório chega com **ALERTA**, porque a base pública parou de atualizar em 29/10/2026. Foi a checagem de frescor que mostrou isso.
+
+**Para rodar localmente:** `python -m src.pipeline.diario` (sem `TELEGRAM_TOKEN` no `.env`, o relatório só aparece na tela).
+
 ## Estrutura
 
 ```
 ├── sql/          # consultas versionadas
 ├── app.py        # interface de chat do assistente (Streamlit)
-├── src/          # código do pipeline, modelos e assistente
+├── src/          # demanda, segmentação, assistente e pipeline diário
 ├── tests/        # testes automáticos
 ├── dashboard/    # arquivo do Power BI (.pbix)
 ├── docs/         # imagens, métricas e diagramas
-└── .github/      # CI
+└── .github/      # CI e agendamento do pipeline diário
 ```
 
 ## Como rodar
@@ -136,3 +181,9 @@ pytest
 ```
 
 Para o dashboard: rode `sql/10_indicadores_diarios.sql` no BigQuery e abra `dashboard/torre_controle.pbix` no Power BI Desktop.
+
+## Sobre
+
+Projeto de portfólio de **Rafael Simões**, com 5 anos de experiência em operação logística e estudando Análise e Desenvolvimento de Sistemas. Construído com IA (Claude) como apoio no planejamento e na revisão do código.
+
+[LinkedIn](https://www.linkedin.com/in/rafael-sim%C3%B5es-556979239) · [GitHub](https://github.com/rafaelsimoesdev)
