@@ -24,6 +24,7 @@ flowchart LR
     BQ --> AS[Assistente<br/>Gemini + guardrails]
     AS --> ST[Streamlit<br/>chat]
     GA[GitHub Actions<br/>todo dia 8h15] --> PD[Pipeline diário<br/>frescor · indicadores · anomalias]
+    BQ --> PD
     PD --> GE[Gemini<br/>resumo]
     GE --> TG[Telegram]
 ```
@@ -184,6 +185,6 @@ Para o dashboard: rode `sql/10_indicadores_diarios.sql` no BigQuery e abra `dash
 
 ## Sobre
 
-Projeto de portfólio de **Rafael Simões**, com 5 anos de experiência em operação logística e estudando Análise e Desenvolvimento de Sistemas. Construído com IA (Claude) como apoio no planejamento e na revisão do código.
+Projeto de portfólio de **Rafael Simões**, com mais de 5 anos de experiência em logística e estudando Análise e Desenvolvimento de Sistemas. Construído com IA (Claude) como apoio no planejamento e na revisão do código.
 
 [LinkedIn](https://www.linkedin.com/in/rafael-sim%C3%B5es-556979239) · [GitHub](https://github.com/rafaelsimoesdev)
