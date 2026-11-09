@@ -187,4 +187,4 @@ Para o dashboard: rode `sql/10_indicadores_diarios.sql` no BigQuery e abra `dash
 
 Projeto de portfólio de **Rafael Simões**, com mais de 5 anos de experiência em logística e estudando Análise e Desenvolvimento de Sistemas. Construído com IA (Claude) como apoio no planejamento e na revisão do código.
 
-[LinkedIn](https://www.linkedin.com/in/rafael-sim%C3%B5es-556979239) · [GitHub](https://github.com/rafaelsimoesdev)
+[LinkedIn](https://www.linkedin.com/in/rafaelsimoesdev) · [GitHub](https://github.com/rafaelsimoesdev)
